@@ -73,11 +73,14 @@ services:
       - ./TOOLS.md:/app/TOOLS.md:ro
       - ./AGENTS.md:/app/AGENTS.md:ro
       - ./memory:/app/memory:rw
+      - ~/.openclaw:/home/node/.openclaw:rw
     environment:
       OPENCLAW_MODE: local
       OPENCLAW_BIND: lan
       OPENCLAW_GATEWAY_PORT: "18789"
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_API_KEY_ALT: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${ANTHROPIC_API_KEY}
       TZ: ${TZ:-UTC}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
@@ -103,11 +106,14 @@ services:
       - ./BANKS.md:/app/BANKS.md:ro
       - ./TOOLS.md:/app/TOOLS.md:ro
       - ./memory:/app/memory:rw
+      - ~/.openclaw:/home/node/.openclaw:rw
     environment:
       OPENCLAW_MODE: local
       OPENCLAW_BIND: lan
       OPENCLAW_GATEWAY_PORT: "18789"
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_API_KEY_ALT: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${ANTHROPIC_API_KEY}
       TZ: ${TZ:-UTC}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
