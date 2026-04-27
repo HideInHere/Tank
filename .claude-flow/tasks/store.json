@@ -149,6 +149,96 @@
       "createdAt": "2026-04-27T07:20:44.453Z",
       "startedAt": "2026-04-27T07:20:57.239Z",
       "completedAt": null
+    },
+    "task-1777276854438-haeo68": {
+      "taskId": "task-1777276854438-haeo68",
+      "type": "implementation",
+      "description": "Fix containerized OpenClaw gateway: update Dockerfile.gateway to use proper ghcr.io image, configure WebSocket on :18789, JWT auth, slash routing. Tank-agent connects to gateway. All in docker-compose.yml (33 containers)",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "gateway-architect"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T08:00:54.438Z",
+      "startedAt": "2026-04-27T08:01:06.680Z",
+      "completedAt": null
+    },
+    "task-1777276855091-2snqo5": {
+      "taskId": "task-1777276855091-2snqo5",
+      "type": "implementation",
+      "description": "Create app.py for analytics-service, portfolio-tracker, risk-manager, alert-service. Use FastAPI, /health endpoint, prometheus metrics, postgres connection pattern from existing services",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "app-coder-1"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T08:00:55.091Z",
+      "startedAt": "2026-04-27T08:01:07.227Z",
+      "completedAt": null
+    },
+    "task-1777276855904-kdtpnq": {
+      "taskId": "task-1777276855904-kdtpnq",
+      "type": "implementation",
+      "description": "Create app.py for notification-service, auth-service, backtest-runner, strategy-optimizer. Same pattern as batch 1",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "app-coder-2"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T08:00:55.904Z",
+      "startedAt": "2026-04-27T08:01:07.868Z",
+      "completedAt": null
+    },
+    "task-1777276856500-lbuquz": {
+      "taskId": "task-1777276856500-lbuquz",
+      "type": "implementation",
+      "description": "Create app.py for signal-generator, feed-aggregator, order-router, report-generator. Complete 12 missing services",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "app-coder-3"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T08:00:56.500Z",
+      "startedAt": "2026-04-27T08:01:08.512Z",
+      "completedAt": null
+    },
+    "task-1777276857127-8u76pp": {
+      "taskId": "task-1777276857127-8u76pp",
+      "type": "testing",
+      "description": "Create comprehensive stress test suite (tests/stress-test.sh): 100 concurrent connections per service, 1000 DB ops/sec, 500 Redis msgs/sec for 5 min, 10k HTTP requests, latency + memory monitoring, recovery validation, CSV report output",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "stress-tester"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T08:00:57.127Z",
+      "startedAt": "2026-04-27T08:01:09.062Z",
+      "completedAt": null
+    },
+    "task-1777276857695-ibkq29": {
+      "taskId": "task-1777276857695-ibkq29",
+      "type": "testing",
+      "description": "Validate all 33 containers build successfully, run E2E tests, stress test suite, verify zero crashes, zero data loss, all health checks pass",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "validator"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T08:00:57.695Z",
+      "startedAt": "2026-04-27T08:01:09.639Z",
+      "completedAt": null
     }
   },
   "version": "3.0.0"

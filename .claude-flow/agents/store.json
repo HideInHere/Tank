@@ -67,6 +67,90 @@
       "createdAt": "2026-04-27T07:20:31.735Z",
       "model": "haiku",
       "modelRoutedBy": "explicit"
+    },
+    "agent-1777276862801-nqmc63": {
+      "agentId": "agent-1777276862801-nqmc63",
+      "agentType": "architect",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-04-27T08:01:02.801Z",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1777276863460-hs7cuc": {
+      "agentId": "agent-1777276863460-hs7cuc",
+      "agentType": "coder",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-04-27T08:01:03.460Z",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1777276864122-zuceeh": {
+      "agentId": "agent-1777276864122-zuceeh",
+      "agentType": "coder",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-04-27T08:01:04.122Z",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1777276864878-1sur4g": {
+      "agentId": "agent-1777276864878-1sur4g",
+      "agentType": "coder",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-04-27T08:01:04.878Z",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1777276865521-pkn5cz": {
+      "agentId": "agent-1777276865521-pkn5cz",
+      "agentType": "tester",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-04-27T08:01:05.521Z",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1777276866118-phsw0v": {
+      "agentId": "agent-1777276866118-phsw0v",
+      "agentType": "tester",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-04-27T08:01:06.118Z",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit"
     }
   },
   "version": "3.0.0"
