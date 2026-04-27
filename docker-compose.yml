@@ -9,7 +9,7 @@ version: "3.9"
 x-svc-defaults: &svc-defaults
   restart: unless-stopped
   networks:
-    - trading-net
+    - tank_trading-internal
   logging:
     driver: json-file
     options:
@@ -41,7 +41,7 @@ x-common-env: &common-env
   UNLEASH_URL: http://unleash:4242/api
 
 networks:
-  trading-net:
+  tank_trading-internal:
     driver: bridge
     ipam:
       config:
@@ -66,7 +66,7 @@ services:
     container_name: tank-openclaw
     restart: unless-stopped
     networks:
-      - trading-net
+      - tank_trading-internal
     ports:
       - "18789:18789"
     volumes:
@@ -98,7 +98,7 @@ services:
     container_name: banks-openclaw
     restart: unless-stopped
     networks:
-      - trading-net
+      - tank_trading-internal
     ports:
       - "18790:18789"
     volumes:
