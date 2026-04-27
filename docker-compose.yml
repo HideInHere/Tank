@@ -61,6 +61,68 @@ volumes:
 
 services:
 
+  tank-openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: tank-openclaw
+    restart: unless-stopped
+    networks:
+      - trading-net
+    ports:
+      - "18789:18789"
+    volumes:
+      - ./SOUL.md:/app/SOUL.md:ro
+      - ./IDENTITY.md:/app/IDENTITY.md:ro
+      - ./TOOLS.md:/app/TOOLS.md:ro
+      - ./AGENTS.md:/app/AGENTS.md:ro
+      - ./memory:/app/memory:rw
+    environment:
+      OPENCLAW_MODE: local
+      OPENCLAW_BIND: lan
+      OPENCLAW_GATEWAY_PORT: "18789"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      TZ: ${TZ:-UTC}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  banks-openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: banks-openclaw
+    restart: unless-stopped
+    networks:
+      - trading-net
+    ports:
+      - "18790:18789"
+    volumes:
+      - ./BANKS.md:/app/BANKS.md:ro
+      - ./TOOLS.md:/app/TOOLS.md:ro
+      - ./memory:/app/memory:rw
+    environment:
+      OPENCLAW_MODE: local
+      OPENCLAW_BIND: lan
+      OPENCLAW_GATEWAY_PORT: "18789"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      TZ: ${TZ:-UTC}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
   postgres:
     <<: *svc-defaults
     image: postgres:16-alpine
