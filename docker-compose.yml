@@ -42,10 +42,7 @@ x-common-env: &common-env
 
 networks:
   tank_trading-internal:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+    external: true
 
 volumes:
   postgres-data:
