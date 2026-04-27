@@ -1,0 +1,27 @@
+FROM node:20-alpine
+
+LABEL maintainer="HideInHere" \
+      description="Openclaw Gateway — Tank trading system entry point"
+
+WORKDIR /app
+
+RUN apk add --no-cache curl ca-certificates
+
+COPY gateway/package*.json ./
+RUN npm install --omit=dev --ignore-scripts
+
+COPY gateway/ ./
+
+RUN addgroup -g 1000 openclaw && adduser -u 1000 -G openclaw -s /bin/sh -D openclaw
+RUN chown -R openclaw:openclaw /app
+USER openclaw
+
+ENV NODE_ENV=production \
+    PORT=18789
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
+    CMD curl -sf http://localhost:18789/health || exit 1
+
+EXPOSE 18789
+
+CMD ["node", "server.js"]

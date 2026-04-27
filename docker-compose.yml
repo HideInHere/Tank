@@ -1,0 +1,661 @@
+version: "3.9"
+
+# ============================================================
+# Tank Trading System — Full Stack
+# Services: openclaw gateway, 24 microservices, 8 postgres DBs,
+#           redis, prometheus, grafana, alertmanager, unleash
+# ============================================================
+
+x-svc-defaults: &svc-defaults
+  restart: unless-stopped
+  networks:
+    - trading-net
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+
+x-postgres-env: &postgres-env
+  POSTGRES_USER: ${POSTGRES_USER:-tank}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+
+x-redis-env: &redis-env
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis}
+
+x-common-env: &common-env
+  POSTGRES_USER: ${POSTGRES_USER:-tank}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis}
+  TZ: ${TZ:-UTC}
+  TRADING_ENV: ${TRADING_ENV:-production}
+  OPENCLAW_URL: http://openclaw-gateway:18789
+  UNLEASH_URL: http://unleash:4242/api
+
+networks:
+  trading-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:
+  unleash-data:
+  backup-data:
+  n8n-data:
+
+# ── Infrastructure ─────────────────────────────────────────
+
+services:
+
+  postgres:
+    <<: *svc-defaults
+    image: postgres:16-alpine
+    container_name: tank-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres}
+      POSTGRES_DB: tank
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init-dbs.sh:/docker-entrypoint-initdb.d/init-dbs.sh:ro
+      - ./infra/postgres/init-scripts:/docker-entrypoint-initdb.d/init-scripts:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tank}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    <<: *svc-defaults
+    image: redis:7-alpine
+    container_name: tank-redis
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-changeme_redis}
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme_redis}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ── Openclaw Gateway ───────────────────────────────────────
+
+  openclaw-gateway:
+    <<: *svc-defaults
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: openclaw-gateway
+    image: tank/openclaw-gateway:latest
+    environment:
+      <<: *common-env
+      OPENCLAW_PORT: "18789"
+      OPENCLAW_SECRET: ${OPENCLAW_SECRET:-changeme_openclaw_secret}
+      OPENCLAW_ADMIN_TOKEN: ${OPENCLAW_ADMIN_TOKEN:-changeme_admin_token}
+      TANK_AGENT_URL: http://tank-agent:9000
+    ports:
+      - "18789:18789"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:18789/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  tank-agent:
+    <<: *svc-defaults
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tank-agent
+    image: tank/tank-agent:latest
+    environment:
+      <<: *common-env
+      TANK_AGENT_ID: ${TANK_AGENT_ID:-tank-agent-001}
+      TANK_AGENT_MODE: ${TANK_AGENT_MODE:-persistent}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-6}
+      OPENCLAW_URL: http://openclaw-gateway:18789
+      OPENCLAW_SECRET: ${OPENCLAW_SECRET:-changeme_openclaw_secret}
+    depends_on:
+      openclaw-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ── Trading Microservices (24) ─────────────────────────────
+
+  api-proxy:
+    <<: *svc-defaults
+    build: { context: ./services/api-proxy }
+    container_name: tank-api-proxy
+    environment:
+      <<: *common-env
+      SERVICE_NAME: api-proxy
+      SERVICE_PORT: "8001"
+    ports: ["127.0.0.1:8001:8001"]
+    depends_on: &svc-deps
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    healthcheck: &svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  research:
+    <<: *svc-defaults
+    build: { context: ./services/research }
+    container_name: tank-research
+    environment:
+      <<: *common-env
+      SERVICE_NAME: research
+      SERVICE_PORT: "8002"
+      DB_NAME: research
+    ports: ["127.0.0.1:8002:8002"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8002/health"]
+
+  decision:
+    <<: *svc-defaults
+    build: { context: ./services/decision }
+    container_name: tank-decision
+    environment:
+      <<: *common-env
+      SERVICE_NAME: decision
+      SERVICE_PORT: "8003"
+      DB_NAME: decision
+    ports: ["127.0.0.1:8003:8003"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8003/health"]
+
+  executor:
+    <<: *svc-defaults
+    build: { context: ./services/executor }
+    container_name: tank-executor
+    environment:
+      <<: *common-env
+      SERVICE_NAME: executor
+      SERVICE_PORT: "8004"
+      DB_NAME: executor
+      BINANCE_API_KEY: ${BINANCE_API_KEY}
+      BINANCE_API_SECRET: ${BINANCE_API_SECRET}
+      COINBASE_API_KEY: ${COINBASE_API_KEY}
+      COINBASE_API_SECRET: ${COINBASE_API_SECRET}
+      KRAKEN_API_KEY: ${KRAKEN_API_KEY}
+      KRAKEN_API_SECRET: ${KRAKEN_API_SECRET}
+      PAPER_TRADING: ${PAPER_TRADING:-false}
+    ports: ["127.0.0.1:8004:8004"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8004/health"]
+
+  ledger:
+    <<: *svc-defaults
+    build: { context: ./services/ledger }
+    container_name: tank-ledger
+    environment:
+      <<: *common-env
+      SERVICE_NAME: ledger
+      SERVICE_PORT: "8005"
+      DB_NAME: ledger
+    ports: ["127.0.0.1:8005:8005"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8005/health"]
+
+  tournament:
+    <<: *svc-defaults
+    build: { context: ./services/tournament }
+    container_name: tank-tournament
+    environment:
+      <<: *common-env
+      SERVICE_NAME: tournament
+      SERVICE_PORT: "8006"
+      DB_NAME: tournament
+    ports: ["127.0.0.1:8006:8006"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8006/health"]
+
+  monitor:
+    <<: *svc-defaults
+    build: { context: ./services/monitor }
+    container_name: tank-monitor
+    environment:
+      <<: *common-env
+      SERVICE_NAME: monitor
+      SERVICE_PORT: "8007"
+      DB_NAME: tank
+    ports: ["127.0.0.1:8007:8007"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8007/health"]
+
+  memory-sync:
+    <<: *svc-defaults
+    build: { context: ./services/memory-sync }
+    container_name: tank-memory-sync
+    environment:
+      <<: *common-env
+      SERVICE_NAME: memory-sync
+      SERVICE_PORT: "8008"
+      DB_NAME: memory
+    ports: ["127.0.0.1:8008:8008"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8008/health"]
+
+  banks-service:
+    <<: *svc-defaults
+    build: { context: ./services/banks-service }
+    container_name: tank-banks-service
+    environment:
+      <<: *common-env
+      SERVICE_NAME: banks-service
+      SERVICE_PORT: "8009"
+      DB_NAME: banks
+    ports: ["127.0.0.1:8009:8009"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8009/health"]
+
+  meta-builder:
+    <<: *svc-defaults
+    build: { context: ./services/meta-builder }
+    container_name: tank-meta-builder
+    environment:
+      <<: *common-env
+      SERVICE_NAME: meta-builder
+      SERVICE_PORT: "8010"
+      DB_NAME: tank
+    ports: ["127.0.0.1:8010:8010"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8010/health"]
+
+  risk-manager:
+    <<: *svc-defaults
+    build: { context: ./services/risk-manager }
+    container_name: tank-risk-manager
+    environment:
+      <<: *common-env
+      SERVICE_NAME: risk-manager
+      SERVICE_PORT: "8011"
+      DB_NAME: tank
+      RISK_MAX_POSITION_SIZE: ${RISK_MAX_POSITION_SIZE:-10000}
+      RISK_MAX_DAILY_LOSS: ${RISK_MAX_DAILY_LOSS:-5000}
+      RISK_MAX_DRAWDOWN_PCT: ${RISK_MAX_DRAWDOWN_PCT:-15}
+    ports: ["127.0.0.1:8011:8011"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8011/health"]
+
+  portfolio-tracker:
+    <<: *svc-defaults
+    build: { context: ./services/portfolio-tracker }
+    container_name: tank-portfolio-tracker
+    environment:
+      <<: *common-env
+      SERVICE_NAME: portfolio-tracker
+      SERVICE_PORT: "8012"
+      DB_NAME: ledger
+    ports: ["127.0.0.1:8012:8012"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8012/health"]
+
+  market-data:
+    <<: *svc-defaults
+    build: { context: ./services/market-data }
+    container_name: tank-market-data
+    environment:
+      <<: *common-env
+      SERVICE_NAME: market-data
+      SERVICE_PORT: "8013"
+      DB_NAME: research
+      DEFAULT_EXCHANGE: ${DEFAULT_EXCHANGE:-binance}
+    ports: ["127.0.0.1:8013:8013"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8013/health"]
+
+  signal-generator:
+    <<: *svc-defaults
+    build: { context: ./services/signal-generator }
+    container_name: tank-signal-generator
+    environment:
+      <<: *common-env
+      SERVICE_NAME: signal-generator
+      SERVICE_PORT: "8014"
+      DB_NAME: decision
+    ports: ["127.0.0.1:8014:8014"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8014/health"]
+
+  order-router:
+    <<: *svc-defaults
+    build: { context: ./services/order-router }
+    container_name: tank-order-router
+    environment:
+      <<: *common-env
+      SERVICE_NAME: order-router
+      SERVICE_PORT: "8015"
+      DB_NAME: executor
+    ports: ["127.0.0.1:8015:8015"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8015/health"]
+
+  position-manager:
+    <<: *svc-defaults
+    build: { context: ./services/position-manager }
+    container_name: tank-position-manager
+    environment:
+      <<: *common-env
+      SERVICE_NAME: position-manager
+      SERVICE_PORT: "8016"
+      DB_NAME: ledger
+    ports: ["127.0.0.1:8016:8016"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8016/health"]
+
+  alert-service:
+    <<: *svc-defaults
+    build: { context: ./services/alert-service }
+    container_name: tank-alert-service
+    environment:
+      <<: *common-env
+      SERVICE_NAME: alert-service
+      SERVICE_PORT: "8017"
+      DB_NAME: tank
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+    ports: ["127.0.0.1:8017:8017"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8017/health"]
+
+  report-generator:
+    <<: *svc-defaults
+    build: { context: ./services/report-generator }
+    container_name: tank-report-generator
+    environment:
+      <<: *common-env
+      SERVICE_NAME: report-generator
+      SERVICE_PORT: "8018"
+      DB_NAME: ledger
+    ports: ["127.0.0.1:8018:8018"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8018/health"]
+
+  backtest-runner:
+    <<: *svc-defaults
+    build: { context: ./services/backtest-runner }
+    container_name: tank-backtest-runner
+    environment:
+      <<: *common-env
+      SERVICE_NAME: backtest-runner
+      SERVICE_PORT: "8019"
+      DB_NAME: research
+    ports: ["127.0.0.1:8019:8019"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8019/health"]
+
+  strategy-optimizer:
+    <<: *svc-defaults
+    build: { context: ./services/strategy-optimizer }
+    container_name: tank-strategy-optimizer
+    environment:
+      <<: *common-env
+      SERVICE_NAME: strategy-optimizer
+      SERVICE_PORT: "8020"
+      DB_NAME: decision
+    ports: ["127.0.0.1:8020:8020"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8020/health"]
+
+  feed-aggregator:
+    <<: *svc-defaults
+    build: { context: ./services/feed-aggregator }
+    container_name: tank-feed-aggregator
+    environment:
+      <<: *common-env
+      SERVICE_NAME: feed-aggregator
+      SERVICE_PORT: "8021"
+      DB_NAME: research
+    ports: ["127.0.0.1:8021:8021"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8021/health"]
+
+  auth-service:
+    <<: *svc-defaults
+    build: { context: ./services/auth-service }
+    container_name: tank-auth-service
+    environment:
+      <<: *common-env
+      SERVICE_NAME: auth-service
+      SERVICE_PORT: "8022"
+      DB_NAME: tank
+      JWT_SECRET: ${OPENCLAW_SECRET:-changeme_openclaw_secret}
+    ports: ["127.0.0.1:8022:8022"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8022/health"]
+
+  notification-service:
+    <<: *svc-defaults
+    build: { context: ./services/notification-service }
+    container_name: tank-notification-service
+    environment:
+      <<: *common-env
+      SERVICE_NAME: notification-service
+      SERVICE_PORT: "8023"
+      DB_NAME: tank
+    ports: ["127.0.0.1:8023:8023"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8023/health"]
+
+  analytics-service:
+    <<: *svc-defaults
+    build: { context: ./services/analytics-service }
+    container_name: tank-analytics-service
+    environment:
+      <<: *common-env
+      SERVICE_NAME: analytics-service
+      SERVICE_PORT: "8024"
+      DB_NAME: ledger
+    ports: ["127.0.0.1:8024:8024"]
+    depends_on: *svc-deps
+    healthcheck:
+      <<: *svc-health
+      test: ["CMD", "curl", "-sf", "http://localhost:8024/health"]
+
+# ── Workflow Orchestration ─────────────────────────────────
+  n8n:
+    <<: *svc-defaults
+    image: n8nio/n8n:1.47.1
+    container_name: tank-n8n
+    environment:
+      N8N_HOST: "0.0.0.0"
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: "http://localhost:5678/"
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-tank}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-changeme_postgres}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-changeme_n8n_key_32chars_minimum}
+      EXECUTIONS_DATA_SAVE_ON_ERROR: all
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
+      GENERIC_TIMEZONE: ${TZ:-UTC}
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:-changeme_n8n}
+    volumes:
+      - n8n-data:/home/node/.n8n
+    ports:
+      - "127.0.0.1:5678:5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+# ── Observability ──────────────────────────────────────────
+
+  prometheus:
+    <<: *svc-defaults
+    image: prom/prometheus:v2.51.2
+    container_name: tank-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+      - "--web.enable-admin-api"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    ports: ["127.0.0.1:9090:9090"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    <<: *svc-defaults
+    image: grafana/grafana:10.4.2
+    container_name: tank-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme_grafana}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3000}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["${GRAFANA_PORT:-3000}:3000"]
+    depends_on:
+      prometheus: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  alertmanager:
+    <<: *svc-defaults
+    image: prom/alertmanager:v0.27.0
+    container_name: tank-alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=http://localhost:${ALERTMANAGER_PORT:-9093}"
+    volumes:
+      - ./infra/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    ports: ["127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+# ── Feature Flags ──────────────────────────────────────────
+
+  unleash:
+    <<: *svc-defaults
+    image: unleashorg/unleash-server:6
+    container_name: tank-unleash
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-tank}:${POSTGRES_PASSWORD:-changeme_postgres}@postgres:5432/unleash
+      DATABASE_SSL: "false"
+      UNLEASH_DEFAULT_ADMIN_USERNAME: admin
+      UNLEASH_DEFAULT_ADMIN_PASSWORD: ${UNLEASH_SECRET:-changeme_unleash_secret}
+      SECRET_KEY: ${UNLEASH_SECRET:-changeme_unleash_secret}
+      INIT_FRONTEND_API_TOKENS: "default:development.unleash-insecure-frontend-api-token"
+    ports: ["127.0.0.1:${UNLEASH_PORT:-4242}:4242"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4242/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s

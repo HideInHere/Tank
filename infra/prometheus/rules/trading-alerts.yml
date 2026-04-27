@@ -1,0 +1,56 @@
+groups:
+  - name: tank-trading
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.instance }} has been down for more than 2 minutes."
+
+      - alert: HighDailyLoss
+        expr: tank_daily_loss_usd > on() group_left() tank_risk_max_daily_loss
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Daily loss limit breached"
+          description: "Daily loss {{ $value }} USD exceeds configured limit."
+
+      - alert: MaxDrawdownBreached
+        expr: tank_drawdown_pct > on() group_left() tank_risk_max_drawdown_pct
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Max drawdown exceeded"
+          description: "Drawdown {{ $value }}% exceeds configured limit."
+
+      - alert: ExecutorStalled
+        expr: rate(tank_orders_executed_total[5m]) == 0 and tank_pending_orders > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Executor appears stalled"
+          description: "No orders executed in 5m but {{ $value }} orders pending."
+
+      - alert: PostgresHighConnections
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres connection count high"
+          description: "{{ $value }} active connections."
+
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage above 85%"

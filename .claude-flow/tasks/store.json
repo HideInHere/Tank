@@ -1,0 +1,155 @@
+{
+  "tasks": {
+    "task-1777274259010-63zm6r": {
+      "taskId": "task-1777274259010-63zm6r",
+      "type": "implementation",
+      "description": "Build complete containerized openclaw + 24 trading services with full testing and github integration per comprehensive spec",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "sonnet-builder"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:17:39.010Z",
+      "startedAt": "2026-04-27T07:17:43.288Z",
+      "completedAt": null
+    },
+    "task-1777274438241-06uokm": {
+      "taskId": "task-1777274438241-06uokm",
+      "type": "implementation",
+      "description": "Build docker-compose.yml with openclaw gateway + 24 services + 27 postgres DBs per spec",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "sonnet-full-build"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:20:38.241Z",
+      "startedAt": "2026-04-27T07:20:52.066Z",
+      "completedAt": null
+    },
+    "task-1777274438846-9nf4fu": {
+      "taskId": "task-1777274438846-9nf4fu",
+      "type": "implementation",
+      "description": "Build all service Dockerfiles (24 + gateway) with health checks",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "sonnet-coder"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:20:38.846Z",
+      "startedAt": "2026-04-27T07:20:52.827Z",
+      "completedAt": null
+    },
+    "task-1777274439478-4z8yd1": {
+      "taskId": "task-1777274439478-4z8yd1",
+      "type": "implementation",
+      "description": "Build database init scripts for all 27 postgres instances",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "sonnet-coder"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:20:39.478Z",
+      "startedAt": "2026-04-27T07:20:53.502Z",
+      "completedAt": null
+    },
+    "task-1777274440355-3jhgqu": {
+      "taskId": "task-1777274440355-3jhgqu",
+      "type": "implementation",
+      "description": "Build setup scripts (setup.sh, install.sh, install-linux.sh, install.ps1)",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "sonnet-coder"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:20:40.355Z",
+      "startedAt": "2026-04-27T07:20:54.141Z",
+      "completedAt": null
+    },
+    "task-1777274441487-u1bj5d": {
+      "taskId": "task-1777274441487-u1bj5d",
+      "type": "implementation",
+      "description": "Build backup-sync.sh for 30-min cron backup + github push",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "sonnet-coder"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:20:41.487Z",
+      "startedAt": "2026-04-27T07:20:54.827Z",
+      "completedAt": null
+    },
+    "task-1777274442381-lwsqf3": {
+      "taskId": "task-1777274442381-lwsqf3",
+      "type": "testing",
+      "description": "Test: docker-compose validation, all services startup, health checks",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "test-agent"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:20:42.381Z",
+      "startedAt": "2026-04-27T07:20:55.544Z",
+      "completedAt": null
+    },
+    "task-1777274443143-ksr8oq": {
+      "taskId": "task-1777274443143-ksr8oq",
+      "type": "testing",
+      "description": "Test: API endpoints, gRPC latency, Redis event bus, slash new protocol",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "test-agent"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:20:43.143Z",
+      "startedAt": "2026-04-27T07:20:56.127Z",
+      "completedAt": null
+    },
+    "task-1777274443778-29ri4z": {
+      "taskId": "task-1777274443778-29ri4z",
+      "type": "testing",
+      "description": "Test: Telegram integration, Trading endpoints, Backup script, Recovery flow",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "test-agent"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:20:43.778Z",
+      "startedAt": "2026-04-27T07:20:56.687Z",
+      "completedAt": null
+    },
+    "task-1777274444453-5fqxu5": {
+      "taskId": "task-1777274444453-5fqxu5",
+      "type": "documentation",
+      "description": "Write README with one-liners, architecture diagrams, troubleshooting",
+      "priority": "normal",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "sonnet-full-build"
+      ],
+      "tags": [],
+      "createdAt": "2026-04-27T07:20:44.453Z",
+      "startedAt": "2026-04-27T07:20:57.239Z",
+      "completedAt": null
+    }
+  },
+  "version": "3.0.0"
+}

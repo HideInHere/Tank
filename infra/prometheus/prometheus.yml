@@ -1,0 +1,69 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: '${TRADING_ENV:-production}'
+    system: tank-trading
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: openclaw-gateway
+    static_configs:
+      - targets: ["openclaw-gateway:18789"]
+    metrics_path: /metrics
+
+  - job_name: tank-agent
+    static_configs:
+      - targets: ["tank-agent:9000"]
+
+  - job_name: trading-microservices
+    static_configs:
+      - targets:
+          - "api-proxy:8001"
+          - "research:8002"
+          - "decision:8003"
+          - "executor:8004"
+          - "ledger:8005"
+          - "tournament:8006"
+          - "monitor:8007"
+          - "memory-sync:8008"
+          - "banks-service:8009"
+          - "meta-builder:8010"
+          - "risk-manager:8011"
+          - "portfolio-tracker:8012"
+          - "market-data:8013"
+          - "signal-generator:8014"
+          - "order-router:8015"
+          - "position-manager:8016"
+          - "alert-service:8017"
+          - "report-generator:8018"
+          - "backtest-runner:8019"
+          - "strategy-optimizer:8020"
+          - "feed-aggregator:8021"
+          - "auth-service:8022"
+          - "notification-service:8023"
+          - "analytics-service:8024"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        regex: "([^:]+):.*"
+        replacement: "${1}"
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres:5432"]
+
+  - job_name: redis
+    static_configs:
+      - targets: ["redis:6379"]
